@@ -1,0 +1,1 @@
+INSERT INTO shop_items (name, price) VALUES ('item name ' || floor(10000000 * random()), 1000 * random());
