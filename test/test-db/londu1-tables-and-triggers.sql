@@ -2,6 +2,7 @@ CREATE OR REPLACE LANGUAGE plpgsql;
 
 DROP TABLE IF EXISTS __londu_1_events ;
 
+-- create events table
 CREATE TABLE __londu_1_events (
   id BIGSERIAL PRIMARY KEY ,
   tid BIGINT, -- transaction id
@@ -12,7 +13,7 @@ CREATE TABLE __londu_1_events (
   nd TEXT  -- new data
 );
 
-
+-- create trigger func
 CREATE OR REPLACE FUNCTION __londu_1_trigger() RETURNS trigger AS $londu_1_trigger_function$
 DECLARE
   old_data json := NULL;
@@ -30,10 +31,10 @@ BEGIN
 END;
 $londu_1_trigger_function$ LANGUAGE plpgsql;
 
+-- recreate triggers
 DROP TRIGGER IF EXISTS __londu_1_trigger_shop_workers ON shop_workers;
 CREATE TRIGGER __londu_1_trigger_shop_workers BEFORE INSERT OR UPDATE OR DELETE ON shop_workers
   FOR EACH ROW EXECUTE PROCEDURE __londu_1_trigger();
-
 
 DROP TRIGGER IF EXISTS __londu_1_trigger_shop_items ON shop_items;
 CREATE TRIGGER __londu_1_trigger_shop_items BEFORE INSERT OR UPDATE OR DELETE ON shop_items
