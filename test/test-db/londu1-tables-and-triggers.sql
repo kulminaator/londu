@@ -27,7 +27,12 @@ BEGIN
   END IF;
   INSERT INTO __londu_1_events (tid, s, t, op, od, nd)
     VALUES (txid_current(), TG_TABLE_SCHEMA, TG_TABLE_NAME , TG_OP, old_data, new_data);
-  RETURN NEW;
+  IF TG_OP IN ('INSERT', 'UPDATE') THEN
+    RETURN NEW;
+  END IF;
+  IF TG_OP IN ('DELETE') THEN
+    RETURN OLD;
+  END IF;
 END;
 $londu_1_trigger_function$ LANGUAGE plpgsql;
 
