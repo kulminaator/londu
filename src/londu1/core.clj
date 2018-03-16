@@ -79,7 +79,9 @@
 (defn get-unreplicated-events
   "Returns the list of unreplicated data events from src-db"
   [src-db previous]
-  (j/query pg-source-db "SELECT * FROM __londu_1_events ORDER BY tid"))
+  (if (nil? previous)
+    (j/query pg-source-db ["SELECT * FROM __londu_1_events ORDER BY tid, id"])
+    (j/query pg-source-db ["SELECT * FROM __londu_1_events WHERE id > ? ORDER BY tid, id" (:id previous)])))
 
 (defn replicate-step-in-tx
   "Does the replicatin step from in-transaction connecton src to in-transactin connection tgt"
@@ -94,9 +96,10 @@
 (defn replicate-step
   "Does the replication of data if available in the events table"
   [src tgt previous]
-  (let [last_replicated_event (j/with-db-transaction [source-con src]
-                         (j/with-db-transaction [target-con tgt]
-                                                (replicate-step-in-tx source-con target-con previous))
+  (let [last_replicated_event
+        (j/with-db-transaction [source-con src]
+                               (j/with-db-transaction [target-con tgt]
+                                                      (replicate-step-in-tx source-con target-con previous))
                          )]
     (println (str "-- Last: " last_replicated_event))
     last_replicated_event
@@ -107,8 +110,8 @@
   "Invokes the single step replicator for a set of times"
   [src tgt]
   (doseq [_ (range 1 1000)]
-    (println "a")
-    (Thread/sleep 100)))
+    ; (replicate-step src tgt last)
+    (Thread/sleep 10)))
 
 (defn source-db-connect-test []
   (println (j/query pg-source-db
