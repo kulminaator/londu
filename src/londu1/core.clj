@@ -80,8 +80,8 @@
   "Returns the list of unreplicated data events from src-db"
   [src-db previous]
   (if (nil? previous)
-    (j/query pg-source-db ["SELECT * FROM __londu_1_events ORDER BY tid, id"])
-    (j/query pg-source-db ["SELECT * FROM __londu_1_events WHERE id > ? ORDER BY tid, id" (:id previous)])))
+    (j/query pg-source-db ["SELECT * FROM __londu_1_events ORDER BY id"])
+    (j/query pg-source-db ["SELECT * FROM __londu_1_events WHERE id > ? ORDER BY id" (:id previous)])))
 
 (defn replicate-step-in-tx
   "Does the replicatin step from in-transaction connecton src to in-transactin connection tgt"
