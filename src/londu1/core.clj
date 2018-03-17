@@ -8,7 +8,7 @@
 (def pg-source-db {:dbtype "postgresql"
                    :dbname "londu1_test_source_db"
                    :host "127.0.0.1"
-                   :port 5435
+                   :port 5432
                    :user "shopdb_user"
                    :password "shopdb_user"
                    ;; :ssl true
@@ -18,7 +18,7 @@
 (def pg-target-db {:dbtype "postgresql"
                    :dbname "londu1_test_target_db"
                    :host "127.0.0.1"
-                   :port 5435
+                   :port 5432
                    :user "shopdb_user"
                    :password "shopdb_user"
                    ;; :ssl true
@@ -102,16 +102,19 @@
                                                       (replicate-step-in-tx source-con target-con previous))
                          )]
     (println (str "-- Last: " last_replicated_event))
-    last_replicated_event
+    (if (nil? last_replicated_event)
+      previous
+      last_replicated_event)
     )
   )
 
 (defn replicate-batch-of-steps
   "Invokes the single step replicator for a set of times"
   [src tgt]
-  (doseq [_ (range 1 1000)]
-    ; (replicate-step src tgt last)
-    (Thread/sleep 10)))
+  (loop [counter 60
+         last nil]
+    (Thread/sleep 1000)
+    (when (> counter 0) (recur (dec counter) (replicate-step src tgt last)))))
 
 (defn source-db-connect-test []
   (println (j/query pg-source-db
@@ -128,7 +131,7 @@
   (source-db-connect-test)
   (target-db-connect-test)
   (println "Got the db connections!")
-  ;(replicate-step pg-source-db pg-target-db)
+  ;(replicate-step pg-source-db pg-target-db nil)
   ;(replicate-batch-of-steps pg-source-db pg-target-db)
 
   )
