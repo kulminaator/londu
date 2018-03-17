@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+chmod 0600 test_pgpass
+
 export DB_PORT=5432
 
 
