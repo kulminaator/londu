@@ -33,12 +33,12 @@
   [x]
   (json/read-str x :bigdec true))
 
-(defn replay-insert-in-target [event tgt-db]
+(defn replay-insert-in-target [event x-tgt-db]
   (let [schema (:s event)
         table (:t event)
         key-values (unjson (:nd event))]
     ; (println (str "Inserting " key-values))
-    (j/insert! tgt-db (str schema "." table) key-values)
+    (j/insert! x-tgt-db (str schema "." table) key-values)
     ))
 
 (defn build-where-str [key-values]
@@ -46,59 +46,74 @@
     (clojure.string/join " AND " (map #(str "\"" % "\" = ?") ks))
     ))
 
-(defn replay-delete-in-target [event tgt-db]
+(defn replay-delete-in-target [event x-tgt-db]
   (let [schema (:s event)
         table (:t event)
         old-key-values (unjson (:od event))
         del-values (vec (cons (build-where-str old-key-values) (vals old-key-values)))]
     ; (println (str "Deleting " old-key-values))
-    (j/delete! tgt-db (str schema "." table) del-values)
+    (j/delete! x-tgt-db (str schema "." table) del-values)
     ))
 
-(defn replay-update-in-target [event tgt-db]
+(defn replay-update-in-target [event x-tgt-db]
   (let [schema (:s event)
         table (:t event)
         old-key-values (unjson (:od event))
         new-key-values (unjson (:nd event))
         upd-filter (vec (cons (build-where-str old-key-values) (vals old-key-values)))]
     ; (println (str "Updating " old-key-values " to " new-key-values))
-    (j/update! tgt-db (str schema "." table) new-key-values upd-filter)
+    (j/update! x-tgt-db (str schema "." table) new-key-values upd-filter)
     ))
 
 (defn replay-event-in-target
   "Replays an event in the target database"
-  [event tgt-db]
+  [event x-tgt-db]
   (let [op (:op event)]
     (case op
-      "INSERT" (replay-insert-in-target event tgt-db)
-      "DELETE" (replay-delete-in-target event tgt-db)
-      "UPDATE" (replay-update-in-target event tgt-db))
+      "INSERT" (replay-insert-in-target event x-tgt-db)
+      "DELETE" (replay-delete-in-target event x-tgt-db)
+      "UPDATE" (replay-update-in-target event x-tgt-db))
     )
   )
 
 (defn get-unreplicated-events
   "Returns the list of unreplicated data events from src-db"
-  [src-db previous]
+  [x-src-db previous]
   (if (nil? previous)
-    (j/query pg-source-db ["SELECT * FROM __londu_1_events ORDER BY id"])
-    (j/query pg-source-db ["SELECT * FROM __londu_1_events WHERE id > ? ORDER BY id" (:id previous)])))
+    (j/query x-src-db ["SELECT * FROM __londu_1_events ORDER BY id"])
+    (j/query x-src-db ["SELECT * FROM __londu_1_events WHERE id > ? ORDER BY id" (:id previous)])))
+
+(defn find-last-event
+  "Returns the last replicated event in target. So we know from where to continue."
+  [tgt-db]
+  (first (j/query tgt-db
+           ["SELECT * FROM __londu_1_events WHERE id = (SELECT event_id FROM __londu_1_states WHERE id=1)"])))
+
+(defn record-last-event-in-target
+ "Writes down the id of the last event into the target database"
+ [event x-tgt-db]
+ ;;(println "Recording the last state")
+ (when (= (j/update! x-tgt-db "__londu_1_states" {"event_id" (:id event)} ["id = ?" 1]) '(0))
+   (j/insert! x-tgt-db "__londu_1_states" {"id" 1 "event_id" (:id event)})))
 
 (defn replicate-step-in-tx
   "Does the replicatin step from in-transaction connecton src to in-transactin connection tgt"
-  [src tgt previous]
-  (let [events (get-unreplicated-events src previous)]
+  [x-src-db x-tgt-db previous]
+  (let [events (get-unreplicated-events x-src-db previous)]
     (doseq [ev events]
       (println ev)
       ; (println (:nd ev))
-      (replay-event-in-target ev tgt))
+      (replay-event-in-target ev x-tgt-db))
+    (when-not (empty? events)
+      (record-last-event-in-target (last events) x-tgt-db))
     (last events)))
 
 (defn replicate-step
   "Does the replication of data if available in the events table"
-  [src tgt previous]
+  [src-db tgt-db previous]
   (let [last_replicated_event
-        (j/with-db-transaction [source-con src]
-                               (j/with-db-transaction [target-con tgt]
+        (j/with-db-transaction [source-con src-db]
+                               (j/with-db-transaction [target-con tgt-db]
                                                       (replicate-step-in-tx source-con target-con previous))
                          )]
     (println (str "-- Last: " last_replicated_event))
@@ -110,11 +125,11 @@
 
 (defn replicate-batch-of-steps
   "Invokes the single step replicator for a set of times"
-  [src tgt]
+  [src-db tgt-db]
   (loop [counter 60
-         last nil]
+         last (find-last-event tgt)]
     (Thread/sleep 1000)
-    (when (> counter 0) (recur (dec counter) (replicate-step src tgt last)))))
+    (when (> counter 0) (recur (dec counter) (replicate-step src-db tgt-db last)))))
 
 (defn source-db-connect-test []
   (println (j/query pg-source-db

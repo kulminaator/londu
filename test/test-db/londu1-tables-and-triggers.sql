@@ -13,6 +13,13 @@ CREATE TABLE __londu_1_events (
   nd TEXT  -- new data
 );
 
+-- create the status table on the target, this is where we write down 'where we are' when we sync data over
+DROP TABLE IF EXISTS __londu_1_states;
+CREATE TABLE __londu_1_states(
+  id BIGSERIAL PRIMARY KEY,
+  event_id BIGINT
+);
+
 -- create trigger func
 CREATE OR REPLACE FUNCTION __londu_1_trigger() RETURNS trigger AS $londu_1_trigger_function$
 DECLARE
