@@ -131,6 +131,29 @@
     (Thread/sleep 1000)
     (when (> counter 0) (recur (dec counter) (replicate-step src-db tgt-db last)))))
 
+(defn copy-table-data [x-src-db x-tgt-db tablename]
+  ;; todo - should implement this
+  )
+
+(defn compose-create-trigger [tablename]
+  ;; todo aside from normalizing the table name should also validate that it can be a table name at all.
+  ;; it may carry special symbols so will double quote it anyway here
+  (let [safe-tablename (clojure.string/replace tablename #"[^a-zA-Z0-9_]" "_")]
+    (str "CREATE TRIGGER __londu_1_trigger_" safe-tablename
+      "BEFORE INSERT OR UPDATE OR DELETE ON \"" tablename "\""
+        "FOR EACH ROW EXECUTE PROCEDURE __londu_1_trigger();")
+    )
+  )
+
+(defn add-a-table [src-db tgt-db tablename]
+  (j/with-db-transaction [source-con src-db]
+                         (j/execute! source-con "SET TRANSACTION REPEATABLE READ")
+                         (j/execute! source-con (compose-create-trigger tablename))
+                         (j/with-db-transaction [target-con tgt-db]
+                                                (copy-table-data source-con target-con tablename))
+                         )
+  )
+
 (defn source-db-connect-test []
   (println (j/query pg-source-db
            ["select now();"])))
