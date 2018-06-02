@@ -127,7 +127,7 @@
   "Invokes the single step replicator for a set of times"
   [src-db tgt-db]
   (loop [counter 60
-         last (find-last-event tgt)]
+         last (find-last-event tgt-db)]
     (Thread/sleep 1000)
     (when (> counter 0) (recur (dec counter) (replicate-step src-db tgt-db last)))))
 
@@ -145,14 +145,32 @@
     )
   )
 
+(defn compose-declare-read-cursor [tablename]
+  ;; todo aside from normalizing the table name should also validate that it can be a table name at all.
+  ;; it may carry special symbols so will double quote it anyway here
+  (let [safe-tablename (clojure.string/replace tablename #"[^a-zA-Z0-9_]" "_")]
+    (str "DECLARE __londu_1_cursor_" safe-tablename
+         "CURSOR WITH HOLD FOR SELECT * FROM \"" tablename "\"")
+    )
+  )
+
+
+(defn compose-close-read-cursor [tablename]
+  ;; todo aside from normalizing the table name should also validate that it can be a table name at all.
+  ;; it may carry special symbols so will double quote it anyway here
+  (let [safe-tablename (clojure.string/replace tablename #"[^a-zA-Z0-9_]" "_")]
+    (str "CLOSE __londu_1_cursor_" safe-tablename)
+    )
+  )
+
 (defn add-a-table [src-db tgt-db tablename]
   (j/with-db-transaction [source-con src-db]
                          (j/execute! source-con "SET TRANSACTION REPEATABLE READ")
                          (j/execute! source-con (compose-create-trigger tablename))
-                         (j/with-db-transaction [target-con tgt-db]
-                                                (copy-table-data source-con target-con tablename))
-                         )
-  )
+                         (j/execute! source-con (compose-declare-read-cursor tablename)))
+  (j/with-db-transaction [target-con tgt-db]
+                        (copy-table-data src-db target-con tablename))
+  (j/execute! src-db (compose-close-read-cursor tablename)))
 
 (defn source-db-connect-test []
   (println (j/query pg-source-db
