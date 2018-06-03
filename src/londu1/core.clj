@@ -132,9 +132,11 @@
     (when (> counter 0) (recur (dec counter) (replicate-step src-db tgt-db last)))))
 
 (defn copy-table-data [src-db-con x-tgt-db tablename]
-  ;; todo - should implement this
-
-  )
+  (let [safe-tablename (clojure.string/replace tablename #"[^a-zA-Z0-9_]" "_")]
+    (loop [qr (j/query src-db-con [(str "FETCH FORWARD 10 FROM __londu_1_cursor_" safe-tablename)])]
+      (doseq [row qr] (j/insert! x-tgt-db (str tablename) (unjson (:nd row))))
+      (when-not (empty? qr) (recur (j/query src-db-con [(str "FETCH FORWARD 10 FROM __londu_1_cursor_" safe-tablename)])))
+      )))
 
 (defn compose-create-trigger [tablename]
   ;; todo aside from normalizing the table name should also validate that it can be a table name at all.
@@ -151,7 +153,7 @@
   ;; it may carry special symbols so will double quote it anyway here
   (let [safe-tablename (clojure.string/replace tablename #"[^a-zA-Z0-9_]" "_")]
     (str "DECLARE __londu_1_cursor_" safe-tablename
-         " CURSOR WITH HOLD FOR SELECT * FROM \"" tablename "\"")
+         " CURSOR WITH HOLD FOR SELECT row_to_json(\"" tablename "\".*)::text AS nd FROM \"" tablename "\"")
     )
   )
 
@@ -171,7 +173,7 @@
                                                (j/execute! source-con (compose-create-trigger tablename))
                                                (j/execute! source-con (compose-declare-read-cursor tablename)))
                         (j/with-db-transaction [target-con tgt-db]
-                                               (copy-table-data src-db target-con tablename))
+                                               (copy-table-data src-db-con target-con tablename))
                         (j/execute! src-db-con (compose-close-read-cursor tablename))
                         )
   )
@@ -196,4 +198,4 @@
 
   )
 
-(add-table-to-replication pg-source-db pg-target-db "add_test_subject")
+;; (add-table-to-replication pg-source-db pg-target-db "add_test_subject")
