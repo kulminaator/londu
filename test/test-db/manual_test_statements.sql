@@ -24,4 +24,4 @@ DROP TABLE IF EXISTS  add_test_subject CASCADE ;
 CREATE TABLE add_test_subject (id integer, someval text);
 
 -- on master
-INSERT INTO add_test_subject SELECT g, 'random__data_'||g FROM generate_series(1,50) g;
+INSERT INTO add_test_subject SELECT g, 'random__data_'||g FROM generate_series(1,1000) g;
