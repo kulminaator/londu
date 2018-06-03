@@ -57,7 +57,7 @@ DROP TRIGGER IF EXISTS __londu_1_trigger_shop_items ON shop_items;
 CREATE TRIGGER __londu_1_trigger_shop_items BEFORE INSERT OR UPDATE OR DELETE ON shop_items
   FOR EACH ROW EXECUTE PROCEDURE __londu_1_trigger();
 
--- create events table
+-- create ticks table
 DROP TABLE IF EXISTS __londu_1_ticks;
 CREATE TABLE __londu_1_ticks (
   id BIGSERIAL PRIMARY KEY ,
