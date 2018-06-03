@@ -15,3 +15,13 @@ select * from __londu_1_ticks where id = 3 for update;
 
 explain SELECT ltm.id FROM __londu_1_ticks ltm
     WHERE id=(SELECT max(id) FROM __londu_1_ticks lts WHERE lts.tid < txid_current());
+-- x
+CREATE TRIGGER __londu_1_trigger_temptest BEFORE INSERT OR UPDATE OR DELETE ON temptest
+  FOR EACH ROW EXECUTE PROCEDURE __londu_1_trigger();
+
+-- on both master and slave
+DROP TABLE IF EXISTS  add_test_subject CASCADE ;
+CREATE TABLE add_test_subject (id integer, someval text);
+
+-- on master
+INSERT INTO add_test_subject SELECT g, 'random__data_'||g FROM generate_series(1,50) g;

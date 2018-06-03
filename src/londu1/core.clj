@@ -131,8 +131,9 @@
     (Thread/sleep 1000)
     (when (> counter 0) (recur (dec counter) (replicate-step src-db tgt-db last)))))
 
-(defn copy-table-data [x-src-db x-tgt-db tablename]
+(defn copy-table-data [src-db-con x-tgt-db tablename]
   ;; todo - should implement this
+
   )
 
 (defn compose-create-trigger [tablename]
@@ -140,8 +141,8 @@
   ;; it may carry special symbols so will double quote it anyway here
   (let [safe-tablename (clojure.string/replace tablename #"[^a-zA-Z0-9_]" "_")]
     (str "CREATE TRIGGER __londu_1_trigger_" safe-tablename
-      "BEFORE INSERT OR UPDATE OR DELETE ON \"" tablename "\""
-        "FOR EACH ROW EXECUTE PROCEDURE __londu_1_trigger();")
+      " BEFORE INSERT OR UPDATE OR DELETE ON \"" tablename "\""
+        " FOR EACH ROW EXECUTE PROCEDURE __londu_1_trigger();")
     )
   )
 
@@ -150,7 +151,7 @@
   ;; it may carry special symbols so will double quote it anyway here
   (let [safe-tablename (clojure.string/replace tablename #"[^a-zA-Z0-9_]" "_")]
     (str "DECLARE __londu_1_cursor_" safe-tablename
-         "CURSOR WITH HOLD FOR SELECT * FROM \"" tablename "\"")
+         " CURSOR WITH HOLD FOR SELECT * FROM \"" tablename "\"")
     )
   )
 
@@ -163,14 +164,17 @@
     )
   )
 
-(defn add-a-table [src-db tgt-db tablename]
-  (j/with-db-transaction [source-con src-db]
-                         (j/execute! source-con "SET TRANSACTION REPEATABLE READ")
-                         (j/execute! source-con (compose-create-trigger tablename))
-                         (j/execute! source-con (compose-declare-read-cursor tablename)))
-  (j/with-db-transaction [target-con tgt-db]
-                        (copy-table-data src-db target-con tablename))
-  (j/execute! src-db (compose-close-read-cursor tablename)))
+(defn add-table-to-replication [src-db tgt-db tablename]
+  (j/with-db-connection [src-db-con src-db]
+                        (j/with-db-transaction [source-con src-db-con]
+                                               (j/execute! source-con "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+                                               (j/execute! source-con (compose-create-trigger tablename))
+                                               (j/execute! source-con (compose-declare-read-cursor tablename)))
+                        (j/with-db-transaction [target-con tgt-db]
+                                               (copy-table-data src-db target-con tablename))
+                        (j/execute! src-db-con (compose-close-read-cursor tablename))
+                        )
+  )
 
 (defn source-db-connect-test []
   (println (j/query pg-source-db
@@ -191,3 +195,5 @@
   ;(replicate-batch-of-steps pg-source-db pg-target-db)
 
   )
+
+(add-table-to-replication pg-source-db pg-target-db "add_test_subject")
