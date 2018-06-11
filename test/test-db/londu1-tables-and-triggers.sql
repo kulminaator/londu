@@ -48,14 +48,15 @@ END;
 $londu_1_trigger_function$ LANGUAGE plpgsql;
 
 
+-- actually not anymore since june 2018, our code can do this now
 -- recreate triggers
-DROP TRIGGER IF EXISTS __londu_1_trigger_shop_workers ON shop_workers;
-CREATE TRIGGER __londu_1_trigger_shop_workers BEFORE INSERT OR UPDATE OR DELETE ON shop_workers
-  FOR EACH ROW EXECUTE PROCEDURE __londu_1_trigger();
+-- DROP TRIGGER IF EXISTS __londu_1_trigger_shop_workers ON shop_workers;
+-- CREATE TRIGGER __londu_1_trigger_shop_workers BEFORE INSERT OR UPDATE OR DELETE ON shop_workers
+--   FOR EACH ROW EXECUTE PROCEDURE __londu_1_trigger();
 
-DROP TRIGGER IF EXISTS __londu_1_trigger_shop_items ON shop_items;
-CREATE TRIGGER __londu_1_trigger_shop_items BEFORE INSERT OR UPDATE OR DELETE ON shop_items
-  FOR EACH ROW EXECUTE PROCEDURE __londu_1_trigger();
+-- DROP TRIGGER IF EXISTS __londu_1_trigger_shop_items ON shop_items;
+-- CREATE TRIGGER __londu_1_trigger_shop_items BEFORE INSERT OR UPDATE OR DELETE ON shop_items
+--  FOR EACH ROW EXECUTE PROCEDURE __londu_1_trigger();
 
 -- create ticks table
 DROP TABLE IF EXISTS __londu_1_ticks;

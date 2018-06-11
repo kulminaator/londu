@@ -198,4 +198,6 @@
 
   )
 
+;; (add-table-to-replication pg-source-db pg-target-db "shop_items")
+
 ;; (add-table-to-replication pg-source-db pg-target-db "add_test_subject")
