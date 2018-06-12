@@ -21,6 +21,17 @@ CREATE TABLE __londu_1_states(
   event_id BIGINT
 );
 
+CREATE OR REPLACE FUNCTION __londu_1_latest_tick() RETURNS bigint AS $$
+DECLARE
+  current_tick bigint := NULL;
+BEGIN
+  -- this lock will be held until our "outer most" transaction commits or rolls back.
+  SELECT ltm.id INTO current_tick FROM __londu_1_ticks ltm
+    WHERE id=(SELECT MAX(id) FROM __londu_1_ticks lts WHERE lts.tid < txid_current()) FOR SHARE;
+  RETURN current_tick;
+END;
+$$ LANGUAGE plpgsql;
+
 -- create trigger func
 CREATE OR REPLACE FUNCTION __londu_1_trigger() RETURNS trigger AS $londu_1_trigger_function$
 DECLARE
@@ -34,8 +45,7 @@ BEGIN
   IF TG_OP IN ('INSERT', 'UPDATE') THEN
     new_data = to_json(NEW);
   END IF;
-  SELECT ltm.id INTO current_tick FROM __londu_1_ticks ltm
-    WHERE id=(SELECT MAX(id) FROM __londu_1_ticks lts WHERE lts.tid < txid_current()) FOR SHARE;
+  current_tick := __londu_1_latest_tick();
   INSERT INTO __londu_1_events (tid, tick, s, t, op, od, nd)
     VALUES (txid_current(), current_tick, TG_TABLE_SCHEMA, TG_TABLE_NAME , TG_OP, old_data, new_data);
   IF TG_OP IN ('INSERT', 'UPDATE') THEN

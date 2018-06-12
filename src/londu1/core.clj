@@ -33,6 +33,9 @@
   [x]
   (json/read-str x :bigdec true))
 
+(defn create-tick [db]
+  (j/execute! db "INSERT INTO __londu_1_ticks(created_at) VALUES(default)"))
+
 (defn replay-insert-in-target [event x-tgt-db]
   (let [schema (:s event)
         table (:t event)
@@ -65,14 +68,18 @@
     (j/update! x-tgt-db (str schema "." table) new-key-values upd-filter)
     ))
 
+
+
+
 (defn replay-event-in-target
   "Replays an event in the target database"
-  [event x-tgt-db]
+  [event x-tgt-db x-src-db]
   (let [op (:op event)]
     (case op
       "INSERT" (replay-insert-in-target event x-tgt-db)
       "DELETE" (replay-delete-in-target event x-tgt-db)
-      "UPDATE" (replay-update-in-target event x-tgt-db))
+      "UPDATE" (replay-update-in-target event x-tgt-db)
+      )
     )
   )
 
@@ -103,7 +110,7 @@
     (doseq [ev events]
       (println ev)
       ; (println (:nd ev))
-      (replay-event-in-target ev x-tgt-db))
+      (replay-event-in-target ev x-tgt-db x-src-db))
     (when-not (empty? events)
       (record-last-event-in-target (last events) x-tgt-db))
     (last events)))
@@ -131,51 +138,74 @@
     (Thread/sleep 1000)
     (when (> counter 0) (recur (dec counter) (replicate-step src-db tgt-db last)))))
 
-(defn copy-table-data [src-db-con x-tgt-db tablename]
-  (let [safe-tablename (clojure.string/replace tablename #"[^a-zA-Z0-9_]" "_")]
-    (loop [qr (j/query src-db-con [(str "FETCH FORWARD 10 FROM __londu_1_cursor_" safe-tablename)])]
-      (doseq [row qr] (j/insert! x-tgt-db (str tablename) (unjson (:nd row))))
-      (when-not (empty? qr) (recur (j/query src-db-con [(str "FETCH FORWARD 10 FROM __londu_1_cursor_" safe-tablename)])))
-      )))
-
-(defn compose-create-trigger [tablename]
+(defn compose-create-trigger [qtablename]
   ;; todo aside from normalizing the table name should also validate that it can be a table name at all.
   ;; it may carry special symbols so will double quote it anyway here
-  (let [safe-tablename (clojure.string/replace tablename #"[^a-zA-Z0-9_]" "_")]
+  (let [safe-tablename (clojure.string/replace qtablename #"[^a-zA-Z0-9_]" "_")
+        [schema tablename] (clojure.string/split qtablename #"\.")]
     (str "CREATE TRIGGER __londu_1_trigger_" safe-tablename
-      " BEFORE INSERT OR UPDATE OR DELETE ON \"" tablename "\""
+      " BEFORE INSERT OR UPDATE OR DELETE ON \"" schema "\".\"" tablename "\""
         " FOR EACH ROW EXECUTE PROCEDURE __londu_1_trigger();")
     )
   )
 
-(defn compose-declare-read-cursor [tablename]
+
+(defn compose-declare-read-cursor [qtablename]
   ;; todo aside from normalizing the table name should also validate that it can be a table name at all.
   ;; it may carry special symbols so will double quote it anyway here
-  (let [safe-tablename (clojure.string/replace tablename #"[^a-zA-Z0-9_]" "_")]
+  (let [safe-tablename (clojure.string/replace qtablename #"[^a-zA-Z0-9_]" "_")
+        [schema tablename] (clojure.string/split qtablename #"\.")]
     (str "DECLARE __londu_1_cursor_" safe-tablename
-         " CURSOR WITH HOLD FOR SELECT row_to_json(\"" tablename "\".*)::text AS nd FROM \"" tablename "\"")
+         " CURSOR WITHOUT HOLD FOR SELECT row_to_json(\"" schema "\".\"" tablename "\".*)::text "
+         " AS nd FROM \"" schema "\".\"" tablename "\"")
     )
   )
 
-
-(defn compose-close-read-cursor [tablename]
+(defn compose-close-read-cursor [qtablename]
   ;; todo aside from normalizing the table name should also validate that it can be a table name at all.
   ;; it may carry special symbols so will double quote it anyway here
-  (let [safe-tablename (clojure.string/replace tablename #"[^a-zA-Z0-9_]" "_")]
+  (let [safe-tablename (clojure.string/replace qtablename #"[^a-zA-Z0-9_]" "_")]
     (str "CLOSE __londu_1_cursor_" safe-tablename)
     )
   )
 
+(defn copy-table-data [x-src-db x-tgt-db qtablename]
+  (let [safe-tablename (clojure.string/replace qtablename #"[^a-zA-Z0-9_]" "_")]
+    (loop [qr (j/query x-src-db [(str "FETCH FORWARD 10 FROM __londu_1_cursor_" safe-tablename)])]
+      (doseq [row qr] (j/insert! x-tgt-db (str qtablename) (unjson (:nd row))))
+      (when-not (empty? qr) (recur (j/query x-src-db [(str "FETCH FORWARD 10 FROM __londu_1_cursor_" safe-tablename)])))
+      )))
+
+(defn table-copy [qtablename x-src-db x-tgt-db]
+  (let [[schema table] (clojure.string/split qtablename #"\.")]
+    (j/execute! x-src-db(compose-declare-read-cursor (str schema "." table)))
+    (copy-table-data x-src-db x-tgt-db (str schema "." table))
+    (j/execute! x-src-db(compose-close-read-cursor (str schema "." table)))
+    ))
+
+(defn sync-transactions [tx-a tx-b]
+  (println "syncing snapshots")
+  (-> (j/query tx-a "SELECT pg_export_snapshot() snap")
+      (first)
+      (:snap)
+      ((fn [snap]
+         (println (str "Snapshot is " snap))
+         (j/execute! tx-b (str "SET TRANSACTION SNAPSHOT '" snap "'") ))))
+
+  )
+
 (defn add-table-to-replication [src-db tgt-db tablename]
-  (j/with-db-connection [src-db-con src-db]
-                        (j/with-db-transaction [source-con src-db-con]
-                                               (j/execute! source-con "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
-                                               (j/execute! source-con (compose-create-trigger tablename))
-                                               (j/execute! source-con (compose-declare-read-cursor tablename)))
-                        (j/with-db-transaction [target-con tgt-db]
-                                               (copy-table-data src-db-con target-con tablename))
-                        (j/execute! src-db-con (compose-close-read-cursor tablename))
-                        )
+  (j/with-db-transaction [x-src-copy-con src-db {:isolation :repeatable-read}]
+                         (j/with-db-transaction [x-src-trigger-con src-db {:isolation :repeatable-read}]
+                                                (println "creating trigger")
+                                                (j/execute! x-src-trigger-con (compose-create-trigger tablename))
+                                                ;; creation of trigger above nicely locked down our tx to a sweetspot
+                                                (sync-transactions x-src-trigger-con x-src-copy-con))
+                         (println "performing copy")
+                         (j/with-db-transaction [x-tgt-con tgt-db]
+                                                (table-copy tablename x-src-copy-con x-tgt-con)
+                                                )
+                         )
   )
 
 (defn source-db-connect-test []
@@ -198,6 +228,6 @@
 
   )
 
-;; (add-table-to-replication pg-source-db pg-target-db "shop_items")
+;; (add-table-to-replication pg-source-db pg-target-db "public.shop_items")
 
 ;; (add-table-to-replication pg-source-db pg-target-db "add_test_subject")
