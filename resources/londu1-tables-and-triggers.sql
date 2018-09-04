@@ -1,7 +1,11 @@
 CREATE OR REPLACE LANGUAGE plpgsql;
 
+-- separator --
+
 CREATE SCHEMA IF NOT EXISTS __londu_1;
 DROP TABLE IF EXISTS __londu_1.events ;
+
+-- separator --
 
 -- create events table
 CREATE TABLE __londu_1.events (
@@ -15,12 +19,17 @@ CREATE TABLE __londu_1.events (
   nd TEXT  -- new data
 );
 
+
+-- separator --
+
 -- create the status table on the target, this is where we write down 'where we are' when we sync data over
 DROP TABLE IF EXISTS __londu_1.states;
 CREATE TABLE __londu_1.states(
   id BIGSERIAL PRIMARY KEY,
   event_id BIGINT
 );
+
+-- separator --
 
 CREATE OR REPLACE FUNCTION __londu_1.latest_tick() RETURNS bigint AS $$
 DECLARE
@@ -32,6 +41,8 @@ BEGIN
   RETURN current_tick;
 END;
 $$ LANGUAGE plpgsql;
+
+-- separator --
 
 -- create trigger func
 CREATE OR REPLACE FUNCTION __londu_1.trigger() RETURNS trigger AS $londu_1_trigger_function$
@@ -58,16 +69,7 @@ BEGIN
 END;
 $londu_1_trigger_function$ LANGUAGE plpgsql;
 
-
--- actually not anymore since june 2018, our code can do this now
--- recreate triggers
--- DROP TRIGGER IF EXISTS __londu_1.trigger_shop_workers ON shop_workers;
--- CREATE TRIGGER __londu_1.trigger_shop_workers BEFORE INSERT OR UPDATE OR DELETE ON shop_workers
---   FOR EACH ROW EXECUTE PROCEDURE __londu_1.trigger();
-
--- DROP TRIGGER IF EXISTS __londu_1.trigger_shop_items ON shop_items;
--- CREATE TRIGGER __londu_1.trigger_shop_items BEFORE INSERT OR UPDATE OR DELETE ON shop_items
---  FOR EACH ROW EXECUTE PROCEDURE __londu_1.trigger();
+-- separator --
 
 -- create ticks table
 DROP TABLE IF EXISTS __londu_1.ticks;
@@ -77,4 +79,7 @@ CREATE TABLE __londu_1.ticks (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- separator --
+
+-- create the first tick
 INSERT INTO __londu_1.ticks(created_at) VALUES(default);
