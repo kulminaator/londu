@@ -15,4 +15,4 @@ pom.xml.asc
 /logs/*.log
 
 # test db credentials
-/test/londu1/test-db-credentials.clj
+/test/londu1/test_db_credentials.clj
