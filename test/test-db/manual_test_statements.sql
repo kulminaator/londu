@@ -1,3 +1,5 @@
+-- these are just used during manual tests to trigger "things"
+
 -- add a tick
 INSERT INTO __londu_1_ticks(created_at) VALUES(default);
 

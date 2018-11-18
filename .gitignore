@@ -13,3 +13,6 @@ pom.xml.asc
 .nrepl-port
 /.idea/
 /logs/*.log
+
+# test db credentials
+/test/londu1/test-db-credentials.clj
