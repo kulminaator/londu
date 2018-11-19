@@ -1,16 +1,15 @@
 (ns londu1.core
   (:gen-class)
   (:require [clojure.java.jdbc :as j])
-  (:require [clojure.data.json :as json])
-  )
+  (:require [clojure.data.json :as json]))
 
 ;; just the example db's being used here
 (def pg-source-db {:dbtype "postgresql"
                    :dbname "londu1_test_source_db"
                    :host "127.0.0.1"
                    :port 5432
-                   :user "shopdb_user"
-                   :password "shopdb_user"
+                   :user "shopdb_source_user"
+                   :password "shopdb_source_user"
                    ;; :ssl true
                    ;; :sslfactory "org.postgresql.ssl.NonValidatingFactory"}
                    })
@@ -19,8 +18,8 @@
                    :dbname "londu1_test_target_db"
                    :host "127.0.0.1"
                    :port 5432
-                   :user "shopdb_user"
-                   :password "shopdb_user"
+                   :user "shopdb_target_user"
+                   :password "shopdb_target_user"
                    ;; :ssl true
                    ;; :sslfactory "org.postgresql.ssl.NonValidatingFactory"}
                    })
@@ -34,7 +33,7 @@
   (json/read-str x :bigdec true))
 
 (defn create-tick [db]
-  (j/execute! db "INSERT INTO __londu_1_ticks(created_at) VALUES(default)"))
+  (j/execute! db "INSERT INTO __londu_1.ticks(created_at) VALUES(default)"))
 
 (defn replay-insert-in-target [event x-tgt-db]
   (let [schema (:s event)
@@ -87,21 +86,21 @@
   "Returns the list of unreplicated data events from src-db"
   [x-src-db previous]
   (if (nil? previous)
-    (j/query x-src-db ["SELECT * FROM __londu_1_events ORDER BY id"])
-    (j/query x-src-db ["SELECT * FROM __londu_1_events WHERE id > ? ORDER BY id" (:id previous)])))
+    (j/query x-src-db ["SELECT * FROM __londu_1.events ORDER BY id"])
+    (j/query x-src-db ["SELECT * FROM __londu_1.events WHERE id > ? ORDER BY id" (:id previous)])))
 
 (defn find-last-event
   "Returns the last replicated event in target. So we know from where to continue."
   [tgt-db]
   (first (j/query tgt-db
-           ["SELECT * FROM __londu_1_events WHERE id = (SELECT event_id FROM __londu_1_states WHERE id=1)"])))
+           ["SELECT * FROM __londu_1.events WHERE id = (SELECT event_id FROM __londu_1.states WHERE id=1)"])))
 
 (defn record-last-event-in-target
  "Writes down the id of the last event into the target database"
  [event x-tgt-db]
  ;;(println "Recording the last state")
- (when (= (j/update! x-tgt-db "__londu_1_states" {"event_id" (:id event)} ["id = ?" 1]) '(0))
-   (j/insert! x-tgt-db "__londu_1_states" {"id" 1 "event_id" (:id event)})))
+ (when (= (j/update! x-tgt-db "__londu_1.states" {"event_id" (:id event)} ["id = ?" 1]) '(0))
+   (j/insert! x-tgt-db "__londu_1.states" {"id" 1 "event_id" (:id event)})))
 
 (defn replicate-step-in-tx
   "Does the replicatin step from in-transaction connecton src to in-transactin connection tgt"
@@ -145,7 +144,7 @@
         [schema tablename] (clojure.string/split qtablename #"\.")]
     (str "CREATE TRIGGER __londu_1_trigger_" safe-tablename
       " BEFORE INSERT OR UPDATE OR DELETE ON \"" schema "\".\"" tablename "\""
-        " FOR EACH ROW EXECUTE PROCEDURE __londu_1_trigger();")
+        " FOR EACH ROW EXECUTE PROCEDURE __londu_1.trigger();")
     )
   )
 

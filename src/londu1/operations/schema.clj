@@ -18,5 +18,5 @@
 ;; (compose-create-schema-and-triggers)
 
 (defn create-schema-and-triggers [db]
-  (execute-multiple (compose-create-schema-tables-and-triggers) false true))
+  (execute-multiple db (compose-create-schema-tables-and-triggers) false true))
 ;; (create-schema-and-triggers londu1.core/pg-source-db)
