@@ -6,6 +6,7 @@
 
 (deftest test-data-sync
   (testing "Initial data from existing db is replicated to new db."
-    (tdh/create-test-dbs)
-    (is (= 0 1))))
+           (tdh/create-test-dbs)
+           (tdh/create-test-structures)
+           (is (= 0 1))))
 
