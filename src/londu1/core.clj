@@ -3,6 +3,7 @@
   (:require [clojure.java.jdbc :as j])
   (:use [londu1.operations.json :only [unjson]])
   (:use [londu1.operations.table :only [table-copy create-trigger]])
+  (:use [londu1.operations.event-control :only [find-last-event record-last-event-in-target get-unreplicated-events]])
   (:use [londu1.operations.event-replay :only [replay-event-in-target]]))
 
 ;; just the example db's being used here
@@ -28,26 +29,6 @@
 
 (defn create-tick [db]
   (j/execute! db "INSERT INTO __londu_1.ticks(created_at) VALUES(default)"))
-
-(defn get-unreplicated-events
-  "Returns the list of unreplicated data events from src-db"
-  [x-src-db previous]
-  (if (nil? previous)
-    (j/query x-src-db ["SELECT * FROM __londu_1.events ORDER BY id"])
-    (j/query x-src-db ["SELECT * FROM __londu_1.events WHERE id > ? ORDER BY id" (:id previous)])))
-
-(defn find-last-event
-  "Returns the last replicated event in target. So we know from where to continue."
-  [tgt-db]
-  (first (j/query tgt-db
-           ["SELECT * FROM __londu_1.events WHERE id = (SELECT event_id FROM __londu_1.states WHERE id=1)"])))
-
-(defn record-last-event-in-target
- "Writes down the id of the last event into the target database"
- [event x-tgt-db]
- ;;(println "Recording the last state")
- (when (= (j/update! x-tgt-db "__londu_1.states" {"event_id" (:id event)} ["id = ?" 1]) '(0))
-   (j/insert! x-tgt-db "__londu_1.states" {"id" 1 "event_id" (:id event)})))
 
 (defn replicate-step-in-tx
   "Does the replicatin step from in-transaction connecton src to in-transactin connection tgt"

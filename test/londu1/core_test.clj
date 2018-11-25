@@ -20,6 +20,5 @@
            (let [source-worker-data (tdh/get-all-shop-workers tdh/source-db)
                  target-worker-data (tdh/get-all-shop-workers tdh/target-db)]
              (is (= source-worker-data target-worker-data)))
-
            ))
 
