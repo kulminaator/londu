@@ -2,7 +2,7 @@
   (:gen-class)
   (:require [clojure.java.jdbc :as j])
   (:use [londu1.operations.json :only [unjson]])
-  (:use [londu1.operations.table :only [table-copy]])
+  (:use [londu1.operations.table :only [table-copy create-trigger]])
   (:use [londu1.operations.event-replay :only [replay-event-in-target]]))
 
 ;; just the example db's being used here
@@ -84,16 +84,6 @@
     (Thread/sleep 1000)
     (when (> counter 0) (recur (dec counter) (replicate-step src-db tgt-db last)))))
 
-(defn compose-create-trigger [qtablename]
-  ;; todo aside from normalizing the table name should also validate that it can be a table name at all.
-  ;; it may carry special symbols so will double quote it anyway here
-  (let [safe-tablename (clojure.string/replace qtablename #"[^a-zA-Z0-9_]" "_")
-        [schema tablename] (clojure.string/split qtablename #"\.")]
-    (str "CREATE TRIGGER __londu_1_trigger_" safe-tablename
-      " BEFORE INSERT OR UPDATE OR DELETE ON \"" schema "\".\"" tablename "\""
-        " FOR EACH ROW EXECUTE PROCEDURE __londu_1.trigger();")
-    )
-  )
 
 (defn sync-transactions [tx-a tx-b]
   (println "syncing snapshots")
@@ -110,7 +100,7 @@
   (j/with-db-transaction [x-src-copy-con src-db {:isolation :repeatable-read}]
                          (j/with-db-transaction [x-src-trigger-con src-db {:isolation :repeatable-read}]
                                                 (println "creating trigger")
-                                                (j/execute! x-src-trigger-con (compose-create-trigger tablename))
+                                                (create-trigger x-src-trigger-con tablename)
                                                 ;; creation of trigger above nicely locked down our tx to a sweetspot
                                                 (sync-transactions x-src-trigger-con x-src-copy-con))
                          (println "performing copy")

@@ -38,5 +38,18 @@
   (let [[schema table] (clojure.string/split qtablename #"\.")]
     (j/execute! x-src-db(compose-declare-read-cursor (str schema "." table)))
     (copy-table-data x-src-db x-tgt-db (str schema "." table))
-    (j/execute! x-src-db(compose-close-read-cursor (str schema "." table)))
-    ))
+    (j/execute! x-src-db(compose-close-read-cursor (str schema "." table)))))
+
+(defn compose-create-trigger [qtablename]
+  ;; todo aside from normalizing the table name should also validate that it can be a table name at all.
+  ;; it may carry special symbols so will double quote it anyway here
+  (let [safe-tablename (clojure.string/replace qtablename #"[^a-zA-Z0-9_]" "_")
+        [schema tablename] (clojure.string/split qtablename #"\.")]
+    (str "CREATE TRIGGER __londu_1_trigger_" safe-tablename
+         " BEFORE INSERT OR UPDATE OR DELETE ON \"" schema "\".\"" tablename "\""
+         " FOR EACH ROW EXECUTE PROCEDURE __londu_1.trigger();")))
+
+(defn create-trigger
+  "Creates the __londu_1 trigger on the table on the specified database to collect insert update delete events."
+  [x-db-con qtablename]
+  (j/execute! x-db-con (compose-create-trigger qtablename)))
