@@ -24,10 +24,6 @@
                    ;; :sslfactory "org.postgresql.ssl.NonValidatingFactory"}
                    })
 
-(def replicated_tables
-  '("shop_items" "shop_workers"))
-
-
 (defn unjson
   [x]
   (json/read-str x :bigdec true))
@@ -66,9 +62,6 @@
     ; (println (str "Updating " old-key-values " to " new-key-values))
     (j/update! x-tgt-db (str schema "." table) new-key-values upd-filter)
     ))
-
-
-
 
 (defn replay-event-in-target
   "Replays an event in the target database"
@@ -170,9 +163,12 @@
 
 (defn copy-table-data [x-src-db x-tgt-db qtablename]
   (let [safe-tablename (clojure.string/replace qtablename #"[^a-zA-Z0-9_]" "_")]
-    (loop [qr (j/query x-src-db [(str "FETCH FORWARD 10 FROM __londu_1_cursor_" safe-tablename)])]
-      (doseq [row qr] (j/insert! x-tgt-db (str qtablename) (unjson (:nd row))))
-      (when-not (empty? qr) (recur (j/query x-src-db [(str "FETCH FORWARD 10 FROM __londu_1_cursor_" safe-tablename)])))
+    (loop [qr (j/query x-src-db [(str "FETCH FORWARD 100 FROM __londu_1_cursor_" safe-tablename)])]
+      ;;(doseq [row qr] (j/insert! x-tgt-db (str qtablename) (unjson (:nd row))))
+      (let [unjsoned-rows (map #(unjson (:nd %)) qr)]
+        (j/insert-multi! x-tgt-db (str qtablename) unjsoned-rows))
+      (when-not (empty? qr)
+        (recur (j/query x-src-db [(str "FETCH FORWARD 10 FROM __londu_1_cursor_" safe-tablename)])))
       )))
 
 (defn table-copy [qtablename x-src-db x-tgt-db]
