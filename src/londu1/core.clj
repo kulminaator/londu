@@ -1,7 +1,6 @@
 (ns londu1.core
   (:gen-class)
   (:require [clojure.java.jdbc :as j])
-  (:use [londu1.operations.json :only [unjson]])
   (:use [londu1.operations.table :only [table-copy create-trigger]])
   (:use [londu1.operations.event-control :only [find-last-event record-last-event-in-target get-unreplicated-events]])
   (:use [londu1.operations.event-replay :only [replay-event-in-target]]))
