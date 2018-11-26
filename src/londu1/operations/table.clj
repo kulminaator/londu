@@ -41,7 +41,7 @@
       (let [unjsoned-rows (map #(unjson (:nd %)) qr)]
         (effective-multi-insert x-tgt-db (str qtablename) unjsoned-rows))
       (when-not (empty? qr)
-        (recur (j/query x-src-db [(str "FETCH FORWARD 10 FROM __londu_1_cursor_" safe-tablename)])))
+        (recur (j/query x-src-db [(str "FETCH FORWARD 100 FROM __londu_1_cursor_" safe-tablename)])))
       )))
 
 (defn table-copy [qtablename x-src-db x-tgt-db]
