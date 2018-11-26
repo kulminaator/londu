@@ -2,7 +2,9 @@
 
 CREATE TABLE shop_workers (
   id SERIAL PRIMARY KEY,
-  name TEXT NOT NULL
+  name TEXT NOT NULL,
+  nickname TEXT,
+  retired BOOLEAN
 );
 
 -- separator --

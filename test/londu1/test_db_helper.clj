@@ -29,11 +29,17 @@
 
 (defn create-test-data[]
   (j/execute! tdc/source-db-user-credentials
-           ["insert into shop_items(name, price) values ('10 buck shirt', 10)"])
+              ["insert into shop_items(name, price) values ('10 buck shirt', 10)"])
   (j/execute! tdc/source-db-user-credentials
-           ["insert into shop_items(name, price) values ('2.5 buck jeans', 2.50)"])
+              ["insert into shop_items(name, price) values ('2.5 buck jeans', 2.50)"])
   (j/execute! tdc/source-db-user-credentials
-           ["insert into shop_workers(name) values ('bob the builder')"]))
+              ["insert into shop_workers(name) values ('bob the builder')"])
+  (j/execute! tdc/source-db-user-credentials
+              ["insert into shop_workers(name, nickname) values ('robby', 'smith')"])
+  (j/execute! tdc/source-db-user-credentials
+              ["insert into shop_workers(name, retired) values ('alice', true)"])
+  (j/execute! tdc/source-db-user-credentials
+              ["insert into shop_workers(name, nickname) values ('jim', 'jimmy jimmy')"]))
 
 (defn prepare-replication-env[]
   (lschema/create-schema-and-triggers tdc/source-db-user-credentials)

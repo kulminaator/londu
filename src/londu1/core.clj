@@ -22,6 +22,7 @@
                    :port 5432
                    :user "shopdb_target_user"
                    :password "shopdb_target_user"
+                   :reWriteBatchedInserts true
                    ;; :ssl true
                    ;; :sslfactory "org.postgresql.ssl.NonValidatingFactory"}
                    })
