@@ -34,20 +34,23 @@
       (j/insert-multi! db table row-keys rows-values {})
       )))
 
+(defn quote-tablename
+  "Turns foo.bar into \"foo\".\"bar\" to use them safely as table names around the sql.
+  Removes any double quotes from input."
+  [qualified-tablename]
+  (let [cleaned-tablename (clojure.string/replace qualified-tablename #"\"" "")
+        [schema tablename] (clojure.string/split cleaned-tablename #"\.")]
+    (str "\"" schema "\".\"" tablename "\"")))
 
 (defn effective-multi-insert
   "Tries to perform a really effective multi row insert, but uses db's own json decoding to do so."
   [db qtablename rows]
   (when (not-empty rows)
-    (let [[schema tablename] (clojure.string/split qtablename #"\.")
+    (let [sqltablename (quote-tablename qtablename)
           jsonified-rows (to-json rows)
           sql-statement [(str
-                         "INSERT INTO \"" schema "\".\"" tablename "\" "
-                         "  SELECT * FROM json_populate_recordset("
-                          "   NULL::\"" schema "\".\"" tablename "\", "
-                              "?::json"
-                            ")") jsonified-rows]]
-      (println (str "! " sql-statement))
+                         "INSERT INTO " sqltablename
+                         "  SELECT * FROM json_populate_recordset(NULL::" sqltablename ",?::json)") jsonified-rows]]
       (j/execute! db sql-statement {})
       )))
 

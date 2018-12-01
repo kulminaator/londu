@@ -1,14 +1,27 @@
 (ns londu1.operations.event-replay
   (:gen-class)
-  (:use [londu1.operations.json :only [from-json]])
+  (:use [londu1.operations.json :only [from-json to-json]])
   (:require [clojure.java.jdbc :as j]))
+
+(defn quote-schemed-tablename
+  "Turns foo bar into \"foo\".\"bar\" to use them safely as qualified table names around the sql.
+  Removes any double quotes from input."
+  [schema tablename]
+  (let [cleaned-schema (clojure.string/replace schema #"\"" "")
+        cleaned-tablename (clojure.string/replace tablename #"\"" "")]
+    (str "\"" cleaned-schema "\".\"" cleaned-tablename "\"")))
 
 (defn replay-insert-in-target [event x-tgt-db]
   (let [schema (:s event)
         table (:t event)
         key-values (from-json (:nd event))]
-    ; (println (str "Inserting " key-values))
-    (j/insert! x-tgt-db (str schema "." table) key-values)
+
+    (let [sqltablename (quote-schemed-tablename schema table)
+          jsonified-data (to-json key-values)
+          sql-statement [(str
+                          "INSERT INTO " sqltablename
+                          "  SELECT * FROM json_populate_record(NULL::" sqltablename ",?::json)") jsonified-data]]
+      (j/execute! x-tgt-db sql-statement {}))
     ))
 
 (defn build-where-str [key-values]
