@@ -1,6 +1,5 @@
 (ns londu1.operations.event-control
   (:gen-class)
-  (:use [londu1.operations.json :only [unjson]])
   (:require [clojure.java.jdbc :as j]))
 
 

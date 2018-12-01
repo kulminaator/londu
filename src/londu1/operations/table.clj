@@ -1,6 +1,6 @@
 (ns londu1.operations.table
   (:gen-class)
-  (:use [londu1.operations.json :only [unjson]])
+  (:use [londu1.operations.json :only [from-json to-json]])
   (:require [clojure.java.jdbc :as j]))
 
 
@@ -23,8 +23,8 @@
     )
   )
 
-(defn effective-multi-insert
-  "Tries to perform a really effective multi insert"
+(defn effective-multi-insert-old
+  "Tries to perform a really effective multi row insert, using json decoded values from clojure and insert-multi!"
   [db table rows]
   (when (not-empty rows)
     (let [row-keys (keys (first rows))
@@ -34,12 +34,29 @@
       (j/insert-multi! db table row-keys rows-values {})
       )))
 
+
+(defn effective-multi-insert
+  "Tries to perform a really effective multi row insert, but uses db's own json decoding to do so."
+  [db qtablename rows]
+  (when (not-empty rows)
+    (let [[schema tablename] (clojure.string/split qtablename #"\.")
+          jsonified-rows (to-json rows)
+          sql-statement [(str
+                         "INSERT INTO \"" schema "\".\"" tablename "\" "
+                         "  SELECT * FROM json_populate_recordset("
+                          "   NULL::\"" schema "\".\"" tablename "\", "
+                              "?::json"
+                            ")") jsonified-rows]]
+      (println (str "! " sql-statement))
+      (j/execute! db sql-statement {})
+      )))
+
 (defn copy-table-data [x-src-db x-tgt-db qtablename]
   (let [safe-tablename (clojure.string/replace qtablename #"[^a-zA-Z0-9_]" "_")]
     (loop [qr (j/query x-src-db [(str "FETCH FORWARD 100 FROM __londu_1_cursor_" safe-tablename)])]
-      ;;(doseq [row qr] (j/insert! x-tgt-db (str qtablename) (unjson (:nd row))))
-      (let [unjsoned-rows (map #(unjson (:nd %)) qr)]
-        (effective-multi-insert x-tgt-db (str qtablename) unjsoned-rows))
+      ;;(doseq [row qr] (j/insert! x-tgt-db (str qtablename) (from-json(:nd row))))
+      (let [unjsoned-rows (map #(from-json(:nd %)) qr)]
+        (effective-multi-insert x-tgt-db qtablename unjsoned-rows))
       (when-not (empty? qr)
         (recur (j/query x-src-db [(str "FETCH FORWARD 100 FROM __londu_1_cursor_" safe-tablename)])))
       )))
