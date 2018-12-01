@@ -4,7 +4,8 @@ CREATE TABLE shop_workers (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   nickname TEXT,
-  retired BOOLEAN
+  retired BOOLEAN,
+  born_at TIMESTAMPTZ
 );
 
 -- separator --

@@ -39,7 +39,8 @@
   (j/execute! tdc/source-db-user-credentials
               ["insert into shop_workers(name, retired) values ('alice', true)"])
   (j/execute! tdc/source-db-user-credentials
-              ["insert into shop_workers(name, nickname) values ('jim', 'jimmy jimmy')"]))
+              [(str "insert into shop_workers(name, nickname, born_at) values ('jim75', 'jimmy 75 jimmy', "
+               "'1975-05-02 13:15:02+0600'::timestamptz)")]))
 
 (defn prepare-replication-env[]
   (lschema/create-schema-and-triggers tdc/source-db-user-credentials)
@@ -51,7 +52,10 @@
   (j/execute! tdc/source-db-user-credentials
            ["insert into shop_items(name, price) values ('.50 cent', 0.50)"])
   (j/execute! tdc/source-db-user-credentials
-           ["insert into shop_workers(name) values ('janice the manager')"]))
+           ["insert into shop_workers(name) values ('janice the manager')"])
+  (j/execute! tdc/source-db-user-credentials
+           [(str "insert into shop_workers(name, nickname, born_at) values ('gib88', 'G88', "
+                 "'1988-12-31 23:15:02-0800'::timestamptz)")]))
 
 (defn source-op[a-function]
   (a-function tdc/source-db-user-credentials))
