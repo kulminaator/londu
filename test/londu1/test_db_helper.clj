@@ -55,7 +55,9 @@
            ["insert into shop_workers(name) values ('janice the manager')"])
   (j/execute! tdc/source-db-user-credentials
            [(str "insert into shop_workers(name, nickname, born_at) values ('gib88', 'G88', "
-                 "'1988-12-31 23:15:02-0800'::timestamptz)")]))
+                 "'1988-12-31 23:15:02-0800'::timestamptz)")])
+  (j/execute! tdc/source-db-user-credentials
+            ["UPDATE shop_workers SET born_at='1995-06-01 23:15:02Z'::timestamptz WHERE name='alice'"]))
 
 (defn source-op[a-function]
   (a-function tdc/source-db-user-credentials))
