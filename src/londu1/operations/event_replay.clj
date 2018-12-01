@@ -38,14 +38,44 @@
     (j/delete! x-tgt-db (str schema "." table) del-values)
     ))
 
+(defn safe-double-quote
+  [text-to-secure]
+  (str "\"" (clojure.string/replace text-to-secure #"\"" "") "\""))
+
+(defn build-fields-list-for-update
+  [new-data]
+  (clojure.string/join "," (map safe-double-quote (keys new-data))))
+
+(defn update-condition-for-key
+  [sql-tablename key]
+  (let [lefty (str (safe-double-quote "__londu_old_data") "." (safe-double-quote key))
+        righty (str sql-tablename "." (safe-double-quote key))]
+      (str "(" lefty " = " righty " OR (" lefty " IS NULL AND " righty " IS NULL))")
+    ))
+
+(defn build-where-match-statements
+  [sql-tablename new-data]
+  (clojure.string/join " AND " (map #(update-condition-for-key sql-tablename %) (keys new-data))))
+
+(defn compose-update-sql
+  [sql-tablename old-data new-data]
+  (let [fields-list (build-fields-list-for-update new-data)
+        where-match-statements (build-where-match-statements sql-tablename old-data)]
+    [(str
+      "UPDATE " sql-tablename "
+         SET (" fields-list ") = (SELECT * FROM json_populate_record(null::" sql-tablename ", ?::json))
+         FROM (SELECT * FROM json_populate_record(null::" sql-tablename ", ?::json)) __londu_old_data
+         WHERE " where-match-statements) (to-json new-data) (to-json old-data)]))
+
 (defn replay-update-in-target [event x-tgt-db]
   (let [schema (:s event)
         table (:t event)
         old-key-values (from-json (:od event))
         new-key-values (from-json (:nd event))
+        sql-tablename (quote-schemed-tablename schema table)
         upd-filter (vec (cons (build-where-str old-key-values) (vals old-key-values)))]
     ; (println (str "Updating " old-key-values " to " new-key-values))
-    (j/update! x-tgt-db (str schema "." table) new-key-values upd-filter)
+    (j/execute! x-tgt-db (compose-update-sql sql-tablename old-key-values new-key-values))
     ))
 
 (defn replay-event-in-target
