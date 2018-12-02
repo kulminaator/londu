@@ -12,9 +12,13 @@
 
 (defn find-last-event
   "Returns the last replicated event in target. So we know from where to continue."
-  [tgt-db]
-  (first (j/query tgt-db
-                  ["SELECT * FROM __londu_1.events WHERE id = (SELECT event_id FROM __londu_1.states WHERE id=1)"])))
+  [tgt-db src-db]
+  (let [last-event-id (-> (j/query tgt-db ["SELECT event_id FROM __londu_1.states WHERE id=1"])
+                          first
+                          :event_id)]
+      (first (j/query src-db ["SELECT * FROM __londu_1.events WHERE id = ?" last-event-id]))
+      ))
+
 
 (defn record-last-event-in-target
   "Writes down the id of the last event into the target database"

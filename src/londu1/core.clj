@@ -35,7 +35,7 @@
   [x-src-db x-tgt-db previous]
   (let [events (get-unreplicated-events x-src-db previous)]
     (doseq [ev events]
-      (println ev)
+      ; (println ev)
       ; (println (:nd ev))
       (replay-event-in-target ev x-tgt-db x-src-db))
     (when-not (empty? events)
@@ -61,7 +61,7 @@
   "Invokes the single step replicator for a set of times"
   [src-db tgt-db]
   (loop [counter 60
-         last (find-last-event tgt-db)]
+         last (find-last-event tgt-db src-db)]
     (Thread/sleep 1000)
     (when (> counter 0) (recur (dec counter) (replicate-step src-db tgt-db last)))))
 
