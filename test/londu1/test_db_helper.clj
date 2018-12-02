@@ -52,12 +52,24 @@
   (j/execute! tdc/source-db-user-credentials
            ["insert into shop_items(name, price) values ('.50 cent', 0.50)"])
   (j/execute! tdc/source-db-user-credentials
+              ["insert into shop_items(name, price) values ('truck to delete', 0.33)"])
+  (j/execute! tdc/source-db-user-credentials
            ["insert into shop_workers(name) values ('janice the manager')"])
   (j/execute! tdc/source-db-user-credentials
-           [(str "insert into shop_workers(name, nickname, born_at) values ('gib88', 'G88', "
-                 "'1988-12-31 23:15:02-0800'::timestamptz)")])
+              ["insert into shop_workers(name, born_at) values ('deletable mike', now())"])
   (j/execute! tdc/source-db-user-credentials
-            ["UPDATE shop_workers SET born_at='1995-06-01 23:15:02Z'::timestamptz WHERE name='alice'"]))
+           [(str "insert into shop_workers(name, nickname, born_at) values ('gib88', 'G88', "
+                 "'1988-12-31 23:15:02-0800'::timestamptz)")]))
+
+(defn modify-some-test-data[]
+  (j/execute! tdc/source-db-user-credentials
+              ["UPDATE shop_workers SET born_at='1995-06-01 23:15:02Z'::timestamptz WHERE name='alice'"]))
+
+(defn delete-some-test-data[]
+  (j/execute! tdc/source-db-user-credentials
+              ["DELETE FROM shop_workers WHERE name='deletable mike'"])
+  (j/execute! tdc/source-db-user-credentials
+              ["DELETE FROM shop_items WHERE name='truck to delete'"]))
 
 (defn source-op[a-function]
   (a-function tdc/source-db-user-credentials))

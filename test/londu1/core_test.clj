@@ -12,6 +12,8 @@
            (add-table-to-replication pg-source-db pg-target-db "public.shop_items")
            (add-table-to-replication pg-source-db pg-target-db "public.shop_workers")
            (tdh/add-test-data)
+           (tdh/modify-some-test-data)
+           (tdh/delete-some-test-data)
            (create-tick tdh/source-db)
            (replicate-step tdh/source-db tdh/target-db nil)
            (let [source-item-data (tdh/get-all-shop-items tdh/source-db)
