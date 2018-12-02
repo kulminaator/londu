@@ -54,7 +54,6 @@
          USING (SELECT * FROM json_populate_record(null::" sql-tablename ", ?::json)) __londu_old_data
          WHERE " where-match-statements) (to-json old-data)]))
 
-
 (defn replay-delete-in-target [event x-tgt-db]
   (let [schema (:s event)
         table (:t event)
