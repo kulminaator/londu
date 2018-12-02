@@ -129,3 +129,12 @@ UPDATE "other_stuff"
            SELECT * FROM json_populate_record(null::"public"."shop_workers", '{"id":3,"name":"alice","nickname":null,"retired":true,"born_at":null}'::json))
            ) __londu_old_data
          WHERE ("__londu_old_data"."id" = "public"."shop_workers"."id" OR ("__londu_old_data"."id" IS NULL AND "public"."shop_workers"."id" IS NULL)) AND ("__londu_old_data"."name" = "public"."shop_workers"."name" OR ("__londu_old_data"."name" IS NULL AND "public"."shop_workers"."name" IS NULL)) AND ("__londu_old_data"."nickname" = "public"."shop_workers"."nickname" OR ("__londu_old_data"."nickname" IS NULL AND "public"."shop_workers"."nickname" IS NULL)) AND ("__londu_old_data"."retired" = "public"."shop_workers"."retired" OR ("__londu_old_data"."retired" IS NULL AND "public"."shop_workers"."retired" IS NULL)) AND ("__londu_old_data"."born_at" = "public"."shop_workers"."born_at" OR ("__londu_old_data"."born_at" IS NULL AND "public"."shop_workers"."born_at" IS NULL))
+
+-- testing the delete syntax
+ explain
+ DELETE FROM "public"."shop_workers"
+         USING
+           (
+              SELECT * FROM json_populate_record(null::"public"."shop_workers", '{"id":3,"name":"alice","nickname":null,"retired":true,"born_at":null}'::json)
+           ) __londu_old_data
+         WHERE ("__londu_old_data"."id" = "public"."shop_workers"."id" OR ("__londu_old_data"."id" IS NULL AND "public"."shop_workers"."id" IS NULL)) AND ("__londu_old_data"."name" = "public"."shop_workers"."name" OR ("__londu_old_data"."name" IS NULL AND "public"."shop_workers"."name" IS NULL)) AND ("__londu_old_data"."nickname" = "public"."shop_workers"."nickname" OR ("__londu_old_data"."nickname" IS NULL AND "public"."shop_workers"."nickname" IS NULL)) AND ("__londu_old_data"."retired" = "public"."shop_workers"."retired" OR ("__londu_old_data"."retired" IS NULL AND "public"."shop_workers"."retired" IS NULL)) AND ("__londu_old_data"."born_at" = "public"."shop_workers"."born_at" OR ("__londu_old_data"."born_at" IS NULL AND "public"."shop_workers"."born_at" IS NULL));
